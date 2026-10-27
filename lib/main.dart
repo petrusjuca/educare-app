@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'core/theme/app_theme.dart';
+import 'core/theme/educare_tema.dart';
 import 'modules/word_game/providers/word_game_provider.dart';
 import 'modules/teacher/providers/teacher_dashboard_provider.dart';
 import 'modules/trilhas/providers/trilhas_provider.dart';
@@ -86,7 +86,7 @@ class MainApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Educare',
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.teacherTheme,
+        theme: EducareTema.tema,
         home: BleConnectionSplash(
           nextScreen: const MainNavigation(),
         ),

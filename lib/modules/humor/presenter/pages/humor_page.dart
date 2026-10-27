@@ -1,133 +1,98 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../providers/humor_provider.dart';
+import '../../../../core/theme/educare_cores.dart';
+import '../../../../core/theme/educare_textos.dart';
+import '../../../../core/widgets/cabecalho_educare.dart';
 import '../../models/humor_model.dart';
-import '../widgets/humor_selector.dart';
-import '../widgets/intensidade_slider.dart';
-import '../widgets/humor_historico.dart';
+import '../../providers/humor_provider.dart';
+import '../widgets/barra_emocao.dart';
 
-/// Página para entrada de humor do estudante
+/// Tela "Como está se sentindo hoje?" (Figma, tela 19_humor.png).
+/// A criança marca de 0 a 5 em cada emoção; cada toque é registrado.
 class HumorPage extends StatelessWidget {
   const HumorPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final humor = context.watch<HumorProvider>();
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Como você está se sentindo?'),
-        backgroundColor: Theme.of(context).primaryColor,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: Consumer<HumorProvider>(
-        builder: (context, provider, child) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Título e instruções
-                Text(
-                  'Olá, Ana!',
-                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                        color: Theme.of(context).primaryColor,
-                        fontWeight: FontWeight.bold,
-                      ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Conte-nos como você está se sentindo hoje.\nIsso nos ajuda a entender melhor seu aprendizado.',
-                  style: Theme.of(context).textTheme.bodyLarge,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-
-                // Seletor de humor
-                HumorSelector(
-                  humorSelecionado: provider.humorSelecionado,
-                  onHumorSelecionado: provider.selecionarHumor,
-                ),
-                const SizedBox(height: 32),
-
-                // Slider de intensidade (só aparece se humor selecionado)
-                if (provider.humorSelecionado != null) ...[
-                  IntensidadeSlider(
-                    intensidade: provider.intensidade,
-                    onIntensidadeChanged: provider.ajustarIntensidade,
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            CabecalhoEducare(titulo: 'Olá, ${humor.nomeAluno}!'),
+            // No tablet, o conteúdo não estica além de 640 px
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 640),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
+                  child: Column(
+                    children: [
+                      _Pergunta(),
+                      const SizedBox(height: 32),
+                      _CartaoEmocoes(humor: humor),
+                    ],
                   ),
-                  const SizedBox(height: 32),
-                ],
-
-                // Botão de salvar
-                if (provider.humorSelecionado != null)
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: provider.estaSalvando
-                          ? null
-                          : () => _salvarHumor(context, provider),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      child: provider.estaSalvando
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
-                          : const Text(
-                              'Salvar Humor',
-                              style: TextStyle(fontSize: 18),
-                            ),
-                    ),
-                  ),
-
-                const SizedBox(height: 48),
-
-                // Histórico de humores
-                if (provider.historicoHumores.isNotEmpty) ...[
-                  Text(
-                    'Seu histórico',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  const SizedBox(height: 16),
-                  HumorHistorico(historico: provider.historicoHumores),
-                ],
-              ],
+                ),
+              ),
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }
+}
 
-  void _salvarHumor(BuildContext context, HumorProvider provider) async {
-    final sucesso = await provider.salvarHumor();
+/// "Como está se sentindo hoje?" + mascote
+class _Pergunta extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text('Como está se sentindo hoje?', style: EducareTextos.pergunta),
+        ),
+        const SizedBox(width: 16),
+        // PROVISÓRIO: recortado do PNG do Figma até o Luis exportar o mascote
+        Image.asset(
+          'assets/images/mascote_neutro_provisorio.png',
+          width: 110,
+          semanticLabel: 'Mascote do Educare',
+        ),
+      ],
+    );
+  }
+}
 
-    if (sucesso) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Humor salvo com sucesso! Obrigado por compartilhar.'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 3),
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Erro ao salvar humor. Tente novamente.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+/// Cartão branco com as 5 emoções
+class _CartaoEmocoes extends StatelessWidget {
+  final HumorProvider humor;
+  const _CartaoEmocoes({required this.humor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 24, 24, 24),
+      decoration: BoxDecoration(
+        color: EducareCores.branco,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: const [
+          BoxShadow(color: Color(0x40000000), blurRadius: 4, offset: Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        children: [
+          for (final emocao in Emocao.values) ...[
+            BarraEmocao(
+              emocao: emocao,
+              nivel: humor.nivel(emocao),
+              aoTocarNivel: (nivel) => humor.marcarNivel(emocao, nivel),
+            ),
+            if (emocao != Emocao.values.last) const SizedBox(height: 16),
+          ],
+        ],
+      ),
+    );
   }
 }
