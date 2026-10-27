@@ -7,7 +7,7 @@ import '../../widgets/word_display.dart';
 import '../../widgets/feedback_overlay.dart';
 
 class GamePage extends StatelessWidget {
-  const GamePage({Key? key}) : super(key: key);
+  const GamePage({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -6,9 +6,9 @@ class WordDisplay extends StatelessWidget {
   final Word word;
 
   const WordDisplay({
-    Key? key,
+    super.key,
     required this.word,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
