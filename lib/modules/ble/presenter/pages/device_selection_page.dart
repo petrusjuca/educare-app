@@ -6,7 +6,7 @@ import '../../services/ble_service.dart';
 import '../../../word_game/presenter/pages/game_page/game_page.dart';
 
 class DeviceSelectionPage extends StatefulWidget {
-  const DeviceSelectionPage({Key? key}) : super(key: key);
+  const DeviceSelectionPage({super.key});
 
   @override
   State<DeviceSelectionPage> createState() => _DeviceSelectionPageState();
@@ -241,7 +241,8 @@ class _DeviceSelectionPageState extends State<DeviceSelectionPage> {
                 itemBuilder: (context, index) {
                   final result = devicesToShow[index];
                   final device = result.device;
-                  final isTarget = device.name == BleService.TARGET_DEVICE_NAME;
+                  // Contrato v3: o nome pode vir com sufixo (EDUCARE-01), casa pelo prefixo
+                  final isTarget = device.name.startsWith(BleService.TARGET_DEVICE_NAME);
                   final isSelected = _selectedDevice == device;
 
                   return ListTile(

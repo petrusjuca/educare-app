@@ -6,7 +6,7 @@ import '../game_page/game_page.dart';
 import '../../../../ble/presenter/pages/device_selection_page.dart';
 
 class IntroPage extends StatelessWidget {
-  const IntroPage({Key? key}) : super(key: key);
+  const IntroPage({super.key});
 
   @override
   Widget build(BuildContext context) {

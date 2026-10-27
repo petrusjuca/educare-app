@@ -28,24 +28,27 @@ class BleService {
   factory BleService() => _instance;
   BleService._internal();
 
-  // Constants - keeping for backward compatibility
-  static const String TARGET_DEVICE_NAME = "EDUCARE - DLJ3";
-  static const String SERVICE_UUID = "1234";
-  static const String CHARACTERISTIC_UUID = "5678";
+  // Contrato BLE v2 — fonte da verdade: EDUCARE/CONTRATO_BLE.md
+  static const String TARGET_DEVICE_NAME = "EDUCARE";
+  static const String SERVICE_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"; // Nordic UART
+  static const String CHARACTERISTIC_UUID = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"; // TX: dispositivo → app (notify)
+  static const String RX_CHARACTERISTIC_UUID = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"; // RX: app → dispositivo (write)
 
   // BLE state
   final FlutterBluePlus _flutterBlue = FlutterBluePlus();
   BluetoothDevice? _connectedDevice;
   BluetoothCharacteristic? _vowelCharacteristic;
+  BluetoothCharacteristic? _writeCharacteristic;
   StreamSubscription? _connectionSubscription;
   StreamSubscription? _characteristicSubscription;
-  List<StreamSubscription> _serviceSubscriptions = [];
-  Map<String, BluetoothCharacteristic> _monitoredCharacteristics = {};
+  final List<StreamSubscription> _serviceSubscriptions = [];
+  final Map<String, BluetoothCharacteristic> _monitoredCharacteristics = {};
   Timer? _periodicReadTimer;
 
   // Stream controllers
   final _deviceStateController = StreamController<BluetoothDeviceState>.broadcast();
   final _vowelNotificationController = StreamController<String>.broadcast();
+  final _botaoRespostaController = StreamController<String>.broadcast(); // CERTO / ERRADO
   final _scanResultsController = StreamController<List<ScanResult>>.broadcast();
   final _connectionStateController = StreamController<bool>.broadcast();
   final _bleDataController = StreamController<Map<String, dynamic>>.broadcast();
@@ -53,6 +56,7 @@ class BleService {
   // Streams
   Stream<BluetoothDeviceState> get deviceStateStream => _deviceStateController.stream;
   Stream<String> get vowelNotificationStream => _vowelNotificationController.stream;
+  Stream<String> get botaoRespostaStream => _botaoRespostaController.stream;
   Stream<List<ScanResult>> get scanResultsStream => _scanResultsController.stream;
   Stream<bool> get connectionStateStream => _connectionStateController.stream;
   Stream<Map<String, dynamic>> get bleDataStream => _bleDataController.stream;
@@ -130,30 +134,49 @@ class BleService {
       List<BluetoothService> services = await _connectedDevice!.discoverServices();
       debugPrint('Discovered ${services.length} services');
 
-      // First, look for the target service and characteristic for backward compatibility
-      bool foundTargetCharacteristic = false;
+      // 1º: procura o serviço do contrato (Nordic UART — ver CONTRATO_BLE.md)
+      for (BluetoothService service in services) {
+        if (service.uuid.toString().toUpperCase() != SERVICE_UUID) continue;
+        for (BluetoothCharacteristic characteristic in service.characteristics) {
+          String characteristicUuid = characteristic.uuid.toString().toUpperCase();
+          if (characteristicUuid == CHARACTERISTIC_UUID) {
+            _vowelCharacteristic = characteristic;
+          } else if (characteristicUuid == RX_CHARACTERISTIC_UUID) {
+            _writeCharacteristic = characteristic;
+          }
+        }
+      }
+      if (_vowelCharacteristic != null) {
+        debugPrint('Contrato BLE v2: TX/RX encontrados no serviço Nordic UART');
+        await _setupNotifications();
+      }
+
+      // Fallback pra firmware fora do contrato: qualquer característica NOTIFY/WRITE
       for (BluetoothService service in services) {
         String serviceUuid = service.uuid.toString().toUpperCase();
         debugPrint('Service discovered: $serviceUuid');
 
-        if (serviceUuid.contains(SERVICE_UUID)) {
-          debugPrint('Found target service: $serviceUuid');
+        for (BluetoothCharacteristic characteristic in service.characteristics) {
+          String characteristicUuid = characteristic.uuid.toString().toUpperCase();
+          debugPrint('Characteristic: $characteristicUuid, Properties: notify=${characteristic.properties.notify}, indicate=${characteristic.properties.indicate}');
 
-          for (BluetoothCharacteristic characteristic in service.characteristics) {
-            String characteristicUuid = characteristic.uuid.toString().toUpperCase();
-            if (characteristicUuid.contains(CHARACTERISTIC_UUID)) {
-              debugPrint('Found target characteristic: $characteristicUuid');
+          // Se suporta NOTIFY, use como característica alvo
+          if (characteristic.properties.notify || characteristic.properties.indicate) {
+            if (_vowelCharacteristic == null) {
               _vowelCharacteristic = characteristic;
-              foundTargetCharacteristic = true;
-
-              // Enable notifications for the target characteristic
+              debugPrint('Set vowel characteristic: $characteristicUuid');
               await _setupNotifications();
             }
+          }
+          if (_writeCharacteristic == null &&
+              (characteristic.properties.write ||
+                  characteristic.properties.writeWithoutResponse)) {
+            _writeCharacteristic = characteristic;
           }
         }
       }
 
-      // Now monitor all services and characteristics
+      // Monitora todos os serviços
       await _monitorAllServices(services);
 
     } catch (e) {
@@ -209,11 +232,7 @@ class BleService {
                   'timestamp': DateTime.now().millisecondsSinceEpoch,
                 });
 
-                // If this is a vowel notification, also process it through the existing channel
-                if (dataString.startsWith('VOGAL:')) {
-                  String vowel = dataString.substring(6).trim();
-                  _vowelNotificationController.add(vowel);
-                }
+                _processarMensagem(dataString);
               }
             });
 
@@ -330,11 +349,7 @@ class BleService {
           String data = String.fromCharCodes(value);
           debugPrint('Received notification: $data');
 
-          // Parse the vowel from the notification
-          if (data.startsWith('VOGAL:')) {
-            String vowel = data.substring(6).trim();
-            _vowelNotificationController.add(vowel);
-          }
+          _processarMensagem(data);
         }
       });
 
@@ -342,6 +357,99 @@ class BleService {
     } catch (e) {
       debugPrint('Error setting up notifications: $e');
     }
+  }
+
+  // Trata uma mensagem recebida do dispositivo (contrato v2 + formatos legados)
+  // e alimenta os dois canais que os jogos escutam (vowelNotificationStream e bleDataStream)
+  void _processarMensagem(String data) {
+    final msg = data.trim();
+    if (msg == 'CERTO' || msg == 'ERRADO') {
+      _botaoRespostaController.add(msg);
+      return;
+    }
+    final vogal = _extractVowelFromData(msg);
+    if (vogal != null) {
+      _vowelNotificationController.add(vogal);
+      _bleDataController.add({
+        'vogal': vogal,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+      });
+    }
+  }
+
+  // Envia comando app → dispositivo: ACERTOU / ERROU / LED:A,E / LED:OFF (contrato v2)
+  Future<bool> enviarComando(String comando) async {
+    final characteristic = _writeCharacteristic;
+    if (characteristic == null) {
+      // Sem dispositivo conectado o jogo segue normal (modo simulador); comando é descartado
+      debugPrint('Comando "$comando" descartado: sem característica RX');
+      return false;
+    }
+    try {
+      await characteristic.write(
+        comando.codeUnits,
+        withoutResponse: characteristic.properties.writeWithoutResponse,
+      );
+      return true;
+    } catch (e) {
+      debugPrint('Erro ao enviar comando "$comando": $e');
+      return false;
+    }
+  }
+
+  // Extract vowel data from BLE notification string
+  String? _extractVowelFromData(String dataString) {
+    // Handle different BLE payload formats from ESP32
+    // Format 1: Single character (e.g., "A", "E", "I", "O", "U")
+    if (dataString.length == 1 && 'AEIOUaeiou'.contains(dataString)) {
+      return dataString.toUpperCase();
+    }
+
+    // Format 2: Code format (e.g., "0", "1", "2", "3", "4")
+    if (dataString.length == 1 && '01234'.contains(dataString)) {
+      const vowelMap = {'0': 'A', '1': 'E', '2': 'I', '3': 'O', '4': 'U'};
+      return vowelMap[dataString];
+    }
+
+    // Format 3: Button format (e.g., "BTN_A", "BTN_E", etc.)
+    if (dataString.startsWith('BTN_') && dataString.length == 5) {
+      String vowel = dataString.substring(4);
+      if ('AEIOU'.contains(vowel)) {
+        return vowel;
+      }
+    }
+
+    // Format 4: VOGAL format (e.g., "VOGAL:A", "VOGAL:E", etc.)
+    if (dataString.startsWith('VOGAL:')) {
+      String vowel = dataString.substring(6).trim();
+      if ('AEIOU'.contains(vowel)) {
+        return vowel;
+      }
+    }
+
+    // Format 5: JSON-like format (e.g., '{"vowel":"A"}')
+    if (dataString.startsWith('{') && dataString.contains('vowel')) {
+      try {
+        // Simple parsing for vowel field
+        int vowelIndex = dataString.indexOf('"vowel"');
+        if (vowelIndex != -1) {
+          int colonIndex = dataString.indexOf(':', vowelIndex);
+          int quoteStart = dataString.indexOf('"', colonIndex);
+          int quoteEnd = dataString.indexOf('"', quoteStart + 1);
+          if (quoteStart != -1 && quoteEnd != -1) {
+            String vowel = dataString.substring(quoteStart + 1, quoteEnd);
+            if ('AEIOU'.contains(vowel)) {
+              return vowel;
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error parsing JSON-like vowel data: $e');
+      }
+    }
+
+    // If no recognized format, return null
+    return null;
   }
 
   // Disconnect from the current device
@@ -373,6 +481,7 @@ class BleService {
 
     _connectedDevice = null;
     _vowelCharacteristic = null;
+    _writeCharacteristic = null;
     _monitoredCharacteristics.clear();
     _connectionStateController.add(false);
 
@@ -396,6 +505,7 @@ class BleService {
 
     _deviceStateController.close();
     _vowelNotificationController.close();
+    _botaoRespostaController.close();
     _scanResultsController.close();
     _connectionStateController.close();
     _bleDataController.close();

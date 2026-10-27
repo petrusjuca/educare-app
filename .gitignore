@@ -1,7 +1,10 @@
 # Miscellaneous
 *.class
 *.lock
+!pubspec.lock
 *.log
+*.apk
+.DS_Store
 *.pyc
 *.swp
 .buildlog/

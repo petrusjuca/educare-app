@@ -7,11 +7,11 @@ class VowelButton extends StatelessWidget {
   final bool isHighlighted;
 
   const VowelButton({
-    Key? key,
+    super.key,
     required this.vowel,
     required this.onPressed,
     this.isHighlighted = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

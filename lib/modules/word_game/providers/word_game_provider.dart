@@ -20,8 +20,8 @@ class WordGameProvider extends ChangeNotifier {
   int _correctAnswers = 0;
   int _incorrectAttempts = 0;
   bool _showFeedback = false;
-  bool _isCorrectFeedback = false;
-  String _feedbackMessage = '';
+  final bool _isCorrectFeedback = false;
+  final String _feedbackMessage = '';
 
   // BLE state
   final BleService _bleService = BleService();

@@ -7,11 +7,11 @@ class FeedbackOverlay extends StatelessWidget {
   final VoidCallback onDismiss;
 
   const FeedbackOverlay({
-    Key? key,
+    super.key,
     required this.isCorrect,
     required this.message,
     required this.onDismiss,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
