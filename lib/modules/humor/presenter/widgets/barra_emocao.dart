@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/educare_cores.dart';
+import '../../../../core/theme/educare_textos.dart';
 import '../../models/humor_model.dart';
 
 /// Uma linha da tela de humor: nome da emoção, emoji e barra de 5 níveis.
@@ -17,6 +17,7 @@ class BarraEmocao extends StatelessWidget {
   });
 
   static const double _larguraEmoji = 56;
+  // Maior que no Figma (34) de propósito: alvo de toque confortável para a criança
   static const double _alturaBarra = 44;
 
   @override
@@ -29,11 +30,7 @@ class BarraEmocao extends StatelessWidget {
           padding: const EdgeInsets.only(left: _larguraEmoji + 12),
           child: Text(
             emocao.nome,
-            style: GoogleFonts.nunito(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: emocao.cor,
-            ),
+            style: EducareTextos.rotuloHumor.copyWith(color: emocao.cor),
           ),
         ),
         const SizedBox(height: 4),

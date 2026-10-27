@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/educare_cores.dart';
 
 /// Quantos níveis cada barra de emoção tem (Figma, tela 19).
 const int niveisPorEmocao = 5;
 
 /// As 5 emoções da tela "Como está se sentindo hoje?" (Figma, tela 19).
-/// Cores medidas no PNG exportado do Figma.
 enum Emocao {
-  ansioso('Ansioso', '😰', Color(0xFFFF9600)),
-  cansado('Cansado', '😫', Color(0xFFAF32FF)),
-  bravo('Bravo', '😠', Color(0xFFE82837)),
-  triste('Triste', '😢', Color(0xFF64AACC)),
-  feliz('Feliz', '🙂', Color(0xFFFFCA28));
+  ansioso('Ansioso', '😰', EducareCores.humorAnsioso),
+  cansado('Cansado', '😫', EducareCores.humorCansado),
+  bravo('Bravo', '😠', EducareCores.humorBravo),
+  triste('Triste', '😢', EducareCores.humorTriste),
+  feliz('Feliz', '🙂', EducareCores.humorFeliz);
 
   const Emocao(this.nome, this.emoji, this.cor);
 
