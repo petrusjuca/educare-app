@@ -1,42 +1,34 @@
-/// Modelo que representa o humor do estudante
-enum Humor {
-  muitoFeliz('Muito Feliz', '😄', 5),
-  feliz('Feliz', '😊', 4),
-  neutro('Neutro', '😐', 3),
-  triste('Triste', '😢', 2),
-  muitoTriste('Muito Triste', '😭', 1);
+import 'package:flutter/material.dart';
 
-  const Humor(this.descricao, this.emoji, this.intensidade);
+/// Quantos níveis cada barra de emoção tem (Figma, tela 19).
+const int niveisPorEmocao = 5;
 
-  final String descricao;
+/// As 5 emoções da tela "Como está se sentindo hoje?" (Figma, tela 19).
+/// Cores medidas no PNG exportado do Figma.
+enum Emocao {
+  ansioso('Ansioso', '😰', Color(0xFFFF9600)),
+  cansado('Cansado', '😫', Color(0xFFAF32FF)),
+  bravo('Bravo', '😠', Color(0xFFE82837)),
+  triste('Triste', '😢', Color(0xFF64AACC)),
+  feliz('Feliz', '🙂', Color(0xFFFFCA28));
+
+  const Emocao(this.nome, this.emoji, this.cor);
+
+  final String nome;
   final String emoji;
-  final int intensidade;
+  final Color cor;
 }
 
-/// Modelo que representa uma entrada de humor
-class EntradaHumor {
-  final String id;
+/// Um registro do que a criança marcou, com data e hora.
+/// É só registro: o app NÃO analisa nem interpreta o humor.
+class RegistroHumor {
   final String estudanteId;
-  final Humor humor;
-  final double? intensidade; // opcional, de 0.0 a 1.0
+  final Map<Emocao, int> niveis; // 0 = não marcou; 1 a 5 = nível tocado
   final DateTime dataHora;
-  final String? observacao; // opcional
 
-  const EntradaHumor({
-    required this.id,
+  const RegistroHumor({
     required this.estudanteId,
-    required this.humor,
-    this.intensidade,
+    required this.niveis,
     required this.dataHora,
-    this.observacao,
   });
-
-  // Retorna uma descrição completa do humor
-  String get descricaoCompleta {
-    final base = '${humor.descricao} ${humor.emoji}';
-    if (intensidade != null) {
-      return '$base (${(intensidade! * 100).round()}%)';
-    }
-    return base;
-  }
 }
